@@ -1,18 +1,28 @@
 from collections import namedtuple
 
 import requests
+import threading
 
 TRACKING_URI = 'https://www.google-analytics.com/collect'
 
 
-def _request(data, extra_headers):
-    return requests.post(TRACKING_URI, data=data, headers=extra_headers)
+def _request(data, extra_headers, callback):
+    """Makes a request to the tracking URI in a separate thread.
+
+    Calls the given callback after the request is complete.
+    """
+    kwargs = dict(data=data, headers=extra_headers)
+    if callback:
+        kwargs.update(dict(hooks=dict(response=callback)))
+    t = threading.Thread(target=requests.post, args=(TRACKING_URI,),
+                         kwargs=kwargs)
+    t.start()
 
 
 def report(tracking_id, client_id, requestable, extra_info=None,
-           extra_headers=None):
+           extra_headers=None, callback=None):
     """Actually report measurements to Google Analytics."""
-    return [_request(data, extra_headers)
+    return [_request(data, extra_headers, callback)
             for data, extra_headers in payloads(
             tracking_id, client_id, requestable, extra_info, extra_headers)]
 
